@@ -2,7 +2,7 @@
 
 ## What it does
 
-This module allows to add media metadata information to FieldtypeFile fields using the PHP Library [getID3](https://github.com/JamesHeinrich/getID3) by James Heinrich. One of the motivations that lead to the development of this module was the need to know the aspect ratio of self-hosted mp4 videos in order to avoid layout shifting during rendering to avoid layout shifts.   
+This module allows to add media metadata information to FieldtypeFile fields using the PHP Library [getID3](https://github.com/JamesHeinrich/getID3) by James Heinrich. One of the motivations that lead to the development of this module was the need to know the aspect ratio of self-hosted mp4 videos in order to avoid layout shifting during rendering. The metadata of individual formats are very different and its details can be used for many use cases.  
 
 *getID3* is an open-source PHP library used for reading and analyzing metadata from various types of multimedia files, including audio, video, and image files. The library can extract a wide range of information, such as the title, artist, album, bitrate, playtime, resolution, and even technical details about the file's encoding and format. It supports a large number of formats, such as MP3, MP4, AVI, FLAC, OGG, and more.
 
