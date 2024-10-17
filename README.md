@@ -41,14 +41,5 @@ $file->metadata('height')
 $file->metadata('aspect')
 ```
 
-
-### Render
-```php
-
-/** @var string return the html from oembed result */
-"$page->embed"
-$page->embed->html
-```
-
 ## Todos
 - Add process to regenerateMetadata
