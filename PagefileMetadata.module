@@ -1,0 +1,134 @@
+<?php
+
+/**
+ * COPYRIGHT NOTICE
+ *
+ * Copyright (c) 2024 Neue Rituale GbR
+ * @author Wolf Bittner <code@neuerituale.com>
+ * @version 1.0.0
+ * @license MIT
+ */
+
+namespace ProcessWire;
+
+class PagefileMetadata extends InputfieldImage implements Module {
+
+	public static function getModuleInfo() {
+		return array(
+			'title' => 'Pagefile Metadata',
+			'version' => 100,
+			'summary' => 'Save and retrieve metadata via hook properties',
+			'singular' => true,
+			'autoload' => true,
+			'requires' => ['https://github.com/JamesHeinrich/getID3']
+		);
+	}
+
+	/**
+	 * register hooks
+	 */
+	public function init() {
+
+		$this->addHookAfter('FieldtypeFile::getConfigInputfields', $this, 'hookGetConfigInputFields');
+
+		$this->addHook('InputfieldFile::fileAdded', function(HookEvent $event) {
+
+			/** @var InputfieldFile $file */
+			$inputfieldFile = $event->object;
+
+			/** @var Field $field */
+			$field = $inputfieldFile->hasPage->get($inputfieldFile->name)->getField();
+
+			if($field->analyseMetadata) {
+				/** @var Pagefile $file */
+				$file = $event->arguments(0);
+				$event->arguments(0, $this->analyze($file));
+			}
+
+		});
+
+		$this->addHookMethod('Pagefile::metadata', $this, 'getMetadata');
+		$this->addHookProperty('Pagefile::metadata', $this, 'getMetadata');
+	}
+
+	/**
+	 * Adds field options
+	 *
+	 * @param HookEvent $event
+	 * @return void
+	 * @throws WireException
+	 * @throws WirePermissionException
+	 */
+	protected function hookGetConfigInputFields(HookEvent $event) : void {
+
+		/** @var Field $field */
+		$field = $event->arguments(0);
+
+		/** @var InputfieldWrapper $wrapper */
+		$wrapper = $event->return;
+
+		$f = $this->wire('modules')->get('InputfieldCheckbox');
+		$f->attr('name', 'analyseMetadata');
+		$f->label = $this->_('Analyze and store metadata');
+		$f->description = $this->_('Should this field store metadata?');
+		$f->checked($field->analyseMetadata);
+		$wrapper->insertAfter($f, $wrapper->get('children')->first());
+
+	}
+
+	/**
+	 * @param Pagefile $file
+	 * @return Pagefile
+	 * @throws \Exception
+	 */
+	private function analyze(Pagefile $file) : Pagefile {
+
+		// check if autoload exists
+		if(!file_exists(__DIR__ . '/vendor/autoload.php')) throw new \Exception('Run composer install in your the module directory.');
+
+		require_once(/*NoCompile*/__DIR__ . '/vendor/autoload.php');
+
+		if(!class_exists('getID3')) throw new \Exception("Please install package getID3 via `composer install` in the PagefileMetadata module directory.");
+
+		if(file_exists($file->filename())) {
+			$getID3 = new \getID3;
+			$info = $getID3->analyze($file->filename());
+
+			$file->filedata('metadata', $info);
+			$this->log("Updated metadata for $file->name");
+		}
+
+		return $file;
+	}
+
+	/**
+	 * @param HookEvent $event
+	 * @return mixed
+	 */
+	public function ___getMetadata(HookEvent $event) : mixed {
+		$metadata = $event->object->filedata('metadata');
+		$key = $event->arguments(0);
+
+		if(!isset($key)) $event->return = $metadata;
+		else if($key === 'width' && array_key_exists('video', $metadata)) $event->return = $metadata['video']['resolution_x'] ?? null;
+		else if($key === 'height' && array_key_exists('video', $metadata)) $event->return = $metadata['video']['resolution_y'] ?? null;
+		else if($key === 'aspect' && array_key_exists('video', $metadata) && $metadata['video']['resolution_y'] > 0) $event->return = ($metadata['video']['resolution_x']/$metadata['video']['resolution_y']) ?? null;
+		return $event->return;
+	}
+
+
+	/**
+	 * @return void
+	 * @throws WireException
+	 */
+	public function regenerateMetadata() {
+		foreach ($this->fields->find("type=FieldtypeFile, analyseMetadata=1") as $field) {
+			foreach ($this->pages->find("$field.count>0, check_access=0") as $page) {
+				foreach ($page->getUnformatted($field->name) as $file)
+					$file = $this->analyze($file);
+					$file->save();
+			}
+		}
+	}
+
+}
