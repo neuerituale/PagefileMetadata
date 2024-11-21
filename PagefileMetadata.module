@@ -11,44 +11,32 @@
 
 namespace ProcessWire;
 
+/**
+ * @method mixed getMetadata(HookEvent $event)
+ * @method string renderItemInfo(Pagefile $pagefile)
+ */
+
 class PagefileMetadata extends InputfieldImage implements Module {
 
 	public static function getModuleInfo() {
-		return array(
-			'title' => 'Pagefile Metadata',
-			'version' => 100,
-			'summary' => 'Save and retrieve metadata via hook properties',
+		return [
+			'title' => __('Pagefile Metadata'),
+			'version' => 101,
+			'summary' => __('Save and retrieve metadata via hook properties'),
 			'singular' => true,
-			'autoload' => true,
-			'requires' => ['https://github.com/JamesHeinrich/getID3']
-		);
+			'autoload' => true
+		];
 	}
 
 	/**
-	 * register hooks
+	 * Register hooks
 	 */
-	public function init() {
-
+	public function init(): void {
 		$this->addHookAfter('FieldtypeFile::getConfigInputfields', $this, 'hookGetConfigInputFields');
-
-		$this->addHook('InputfieldFile::fileAdded', function(HookEvent $event) {
-
-			/** @var InputfieldFile $file */
-			$inputfieldFile = $event->object;
-
-			/** @var Field $field */
-			$field = $inputfieldFile->hasPage->get($inputfieldFile->name)->getField();
-
-			if($field->analyseMetadata) {
-				/** @var Pagefile $file */
-				$file = $event->arguments(0);
-				$event->arguments(0, $this->analyze($file));
-			}
-
-		});
-
+		$this->addHook('InputfieldFile::fileAdded', $this, 'hookFileAdded');
 		$this->addHookMethod('Pagefile::metadata', $this, 'getMetadata');
 		$this->addHookProperty('Pagefile::metadata', $this, 'getMetadata');
+		$this->addHookAfter('InputfieldFile::renderItem', $this, 'hookRenderItem');
 	}
 
 	/**
@@ -69,11 +57,53 @@ class PagefileMetadata extends InputfieldImage implements Module {
 
 		$f = $this->wire('modules')->get('InputfieldCheckbox');
 		$f->attr('name', 'analyseMetadata');
-		$f->label = $this->_('Analyze and store metadata');
+		$f->label = $this->_('Enable Analyze and store metadata');
 		$f->description = $this->_('Should this field store metadata?');
 		$f->checked($field->analyseMetadata);
 		$wrapper->insertAfter($f, $wrapper->get('children')->first());
 
+	}
+
+	/**
+	 * Start analysing metadata
+	 *
+	 * @param HookEvent $event
+	 * @return void
+	 * @throws WireException
+	 * @throws WirePermissionException
+	 */
+	function hookFileAdded(HookEvent $event) : void {
+
+		/** @var InputfieldFile $file */
+		$inputfieldFile = $event->object;
+
+		/** @var Field $field */
+		$field = $inputfieldFile->hasPage->get($inputfieldFile->name)->getField();
+
+		if($field->analyseMetadata) {
+			/** @var Pagefile $file */
+			$file = $event->arguments(0);
+			$event->arguments(0, $this->analyze($file));
+		}
+
+	}
+
+	/**
+	 * Add some informations to rendered file item
+	 * @param HookEvent $event
+	 * @return void
+	 */
+	function hookRenderItem(HookEvent $event) : void {
+		/** @var Pagefile $pagefile */
+		$pagefile = $event->argumentsByName('pagefile');
+		if(!(
+			$pagefile instanceof Pagefile
+			&& $pagefile->field->analyseMetadata
+			&& is_array($pagefile->metadata))
+		) return;
+
+		$renderItemInfo = $this->renderItemInfo($pagefile);
+		if($renderItemInfo) $event->return = str_replace("<span class='InputfieldFileStats'>", "<span class='InputfieldFileStats'>&nbsp; $renderItemInfo &nbsp; ", $event->return);
 	}
 
 	/**
@@ -83,12 +113,11 @@ class PagefileMetadata extends InputfieldImage implements Module {
 	 */
 	private function analyze(Pagefile $file) : Pagefile {
 
-		// check if autoload exists
-		if(!file_exists(__DIR__ . '/vendor/autoload.php')) throw new \Exception('Run composer install in your the module directory.');
-
-		require_once(/*NoCompile*/__DIR__ . '/vendor/autoload.php');
-
-		if(!class_exists('getID3')) throw new \Exception("Please install package getID3 via `composer install` in the PagefileMetadata module directory.");
+		// check global getID3 class and include autoload
+		if(!class_exists("getID3")) {
+			if(!file_exists(__DIR__ . '/vendor/autoload.php')) throw new \Exception('Please install package getID3 via `composer install` in the PagefileMetadata module directory.');
+			require_once(/*NoCompile*/__DIR__ . '/vendor/autoload.php');
+		}
 
 		if(file_exists($file->filename())) {
 			$getID3 = new \getID3;
@@ -113,15 +142,38 @@ class PagefileMetadata extends InputfieldImage implements Module {
 		else if($key === 'width' && array_key_exists('video', $metadata)) $event->return = $metadata['video']['resolution_x'] ?? null;
 		else if($key === 'height' && array_key_exists('video', $metadata)) $event->return = $metadata['video']['resolution_y'] ?? null;
 		else if($key === 'aspect' && array_key_exists('video', $metadata) && $metadata['video']['resolution_y'] > 0) $event->return = ($metadata['video']['resolution_x']/$metadata['video']['resolution_y']) ?? null;
+		else if($key === 'type' && array_key_exists('mime_type', $metadata)) $event->return = explode('/', $metadata['mime_type'], 2)[0];
 		return $event->return;
 	}
 
+	/**
+	 * Add some file infos
+	 * @param Pagefile $pagefile
+	 * @return string
+	 */
+	public function ___renderItemInfo(Pagefile $pagefile): string {
+
+		$type = $pagefile->metadata('type');
+		$metadata = $pagefile->metadata;
+		$out = [];
+
+		// width/height
+		if($type === 'video') {
+			$out[] = $pagefile->metadata('width') . 'x' . $pagefile->metadata('height');
+		}
+
+		// playtime
+		if(array_key_exists('playtime_string', $metadata)) $out[] = '<i uk-icon="icon: clock; ratio: .68" style="line-height: 1em; vertical-align: top"></i> '  . $metadata['playtime_string'];
+
+		// merge
+		return trim(implode(' &nbsp; ', $out));
+	}
 
 	/**
 	 * @return void
 	 * @throws WireException
 	 */
-	public function regenerateMetadata() {
+	public function regenerateMetadata(): void {
 		foreach ($this->fields->find("type=FieldtypeFile, analyseMetadata=1") as $field) {
 			foreach ($this->pages->find("$field.count>0, check_access=0") as $page) {
 				foreach ($page->getUnformatted($field->name) as $file)
