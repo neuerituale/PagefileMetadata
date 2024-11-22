@@ -57,7 +57,7 @@ class PagefileMetadata extends InputfieldImage implements Module {
 
 		$f = $this->wire('modules')->get('InputfieldCheckbox');
 		$f->attr('name', 'analyseMetadata');
-		$f->label = $this->_('Enable Analyze and store metadata');
+		$f->label = $this->_('Enable analyze and store metadata');
 		$f->description = $this->_('Should this field store metadata?');
 		$f->checked($field->analyseMetadata);
 		$wrapper->insertAfter($f, $wrapper->get('children')->first());

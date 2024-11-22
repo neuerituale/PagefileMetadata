@@ -2,13 +2,17 @@
 
 ## What it does
 
-This module allows to add media metadata information to FieldtypeFile fields using the PHP Library [getID3](https://github.com/JamesHeinrich/getID3) by James Heinrich. One of the motivations that lead to the development of this module was the need to know the aspect ratio of self-hosted mp4 videos in order to avoid layout shifting during rendering. However, this application is very specific and the metadata of individual formats are very different and its details can be used for many use cases.  
+This module allows you to add media metadata information to FieldtypeFile fields. Under the hood it uses the PHP library [getID3](https://github.com/JamesHeinrich/getID3) by James Heinrich and stores the raw data in the fields' filedata property.
 
-*getID3* is an open-source PHP library used for reading and analyzing metadata from various types of multimedia files, including audio, video, and image files. The library can extract a wide range of information, such as the title, artist, album, bitrate, playtime, resolution, and even technical details about the file's encoding and format. It supports a large number of formats, such as MP3, MP4, AVI, FLAC, OGG, and more.
+*getID3* is an open source PHP library for reading and analysing metadata from various types of multimedia files, including audio, video and image files. The library can extract a wide range of information such as title, artist, album, bitrate, playtime, resolution and even technical details about the file's encoding and format. It supports a wide range of formats including MP3, MP4, AVI, FLAC, OGG and more.
+
+One of the motivations for developing this module was the need to know the aspect ratio of self-hosted mp4 videos in order to avoid layout shifts during rendering.
+
+However, this use case is very specific and the idea of this module is to make the metadata accessible via simple apis. The module comes with some video specific functions like width, height, aspect and type.
 
 ## Features
 - Analyse and store metadata information
-- Fieldbased opt-in for FieldtypeFile files
+- Field based opt-in for FieldtypeFile files
 
 ## Install
 1. Copy the module files to /site/modules/PagefileMetadata/
@@ -19,7 +23,7 @@ This module allows to add media metadata information to FieldtypeFile fields usi
 
 ### Edit Field settings
 `Fields` > `yourFieldtypeFile` > `Details`
-Check the checkbox *Analyze and store metadata* to enable the feature for a specific field
+Check the checkbox *Enable analyze and store metadata* to enable the feature for a specific field
 
 ## API
 
@@ -41,5 +45,10 @@ $file->metadata('height')
 $file->metadata('aspect')
 ```
 
+You can add your own custom parameters by hooking into ___getMetadata.
+
 ## Todos
-- Add process to regenerateMetadata
+- Add process in backend to regenerateMetadata
+
+## Feedback
+If you have any feedback, please reach out to us at [code@neuerituale.com](mailto:code@neuerituale.com) or create an issue in the github projekt.
