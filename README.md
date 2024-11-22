@@ -47,6 +47,9 @@ $file->metadata('aspect')
 
 You can add your own custom parameters by hooking into ___getMetadata.
 
+<img width="1534" alt="image" src="https://github.com/user-attachments/assets/2e0168a4-be18-4c6f-8825-646cc6692834">
+
+
 ## Todos
 - Add process in backend to regenerateMetadata
 
